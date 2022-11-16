@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="code"/></w:pPr><w:r><w:t><![CDATA[classdef Formula1_mkIII < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure                       matlab.ui.Figure
+        AceleracindelVehiculomsSlider  matlab.ui.control.Slider
+        AceleracindelVehiculomsSliderLabel  matlab.ui.control.Label
+        CoeficientedeFriccionAerodinamicaSlider  matlab.ui.control.Slider
+        CoeficientedeFriccionAerodinamicaSliderLabel  matlab.ui.control.Label
+        VelocidadInicialkmhEditField   matlab.ui.control.NumericEditField
+        VelocidadInicialkmhEditFieldLabel  matlab.ui.control.Label
+        DesplegarButton                matlab.ui.control.Button
+        UIAxes                         matlab.ui.control.UIAxes
+    end
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Button pushed function: DesplegarButton
+        function DesplegarButtonPushed(app, event)
+            %app. Definiciones
+            tabla = app.UIAxes;
+
+            %Valores fijos
+            masaAuto = 754;
+            coeficienteFriccionEstatica = 1;
+            coeficienteFriccionDinamica = 0.8;
+            gravity = 9.8;
+            densidadAire = 1.225;
+            areaTransversal = 2.2;
+            coeficienteFriccionAerodinamica = app.CoeficientedeFriccionAerodinamicaSlider.Value;
+     
+
+            %Valores variables
+            vCruda = app.VelocidadInicialkmhEditField.Value; %Velocidad Inicial
+            accMotor = app.AceleracindelVehiculomsSlider.Value; %Aceleracion en m/s^2
+            velI = vCruda * (5/18); %Conversion de km/h a m/s por fines de adaptabilidad a la pista
+
+            fMotor = masaAuto * accMotor;
+          
+            %Coordenadas del punto inicial
+            xPoint1 = 30;
+            yPoint1 = 230;
+
+            %Coordenadas de la curva 1
+            xPoint2 = 77;
+            yPoint2 = 932;
+            
+            %Coordenadas de la curva 2
+            xPoint3 = 226;
+            yPoint3 = -932;
+
+            %Coordenadas del punto final
+            xPoint4 = 280;
+            yPoint4 = 20;
+
+            %Coordenadas del punto de derrape 1
+            xDrift1 = 77.53;
+            yDrift1 = 932.05;
+
+            %Coordenadas del punto de derrape 2
+            xDrift2 = 225.36;
+            yDrift2 = -932.05;
+
+            %Concatenando valores de "x" y "y" para graficar
+            %Puntos considerados para graficar
+            xDef = cat(2, xPoint1, xPoint2, xPoint3, xPoint4);
+            yDef = cat(2, yPoint1, yPoint2, yPoint3, yPoint4);
+
+            %Puntos de las curvas
+            xCurves = cat(2, xDrift1, xDrift2);
+            yCurves = cat(2, yDrift1, yDrift2);
+
+            xInterval = 0:10:300;
+            yList = [];
+            for i = 30:1:280
+                func = (0.0011539692115 * (i^3)) - (0.524299399663 * (i^2)) + (60.4897140442236 * (i)) - 1143.9791303413722;
+                yList(end+1) = func;
+            end
+            
+            xi = xPoint1;
+            yi = yPoint1;
+            vMax = 0;
+            vF = 0;
+
+
+            newyList = [];
+            newxList = [];
+
+            for i = 0:1:250
+                
+                fWind = 1/2 * densidadAire * areaTransversal * coeficienteFriccionAerodinamica * velI^2;
+                sigmaF = fMotor - fWind;
+                acc = sigmaF/masaAuto;
+
+                m = (1239074865516641593437593 * i^3) - (562966673333891020896990021 * i^2) + (64950852715611254693298549490 * i) - (1228348012196148782363324334890/1073750368006801007273581211);
+                angl = atan(m);
+
+                vOx = velI * cos(angl);
+                vOy = velI * sin(angl);
+
+                vFx = vOx + acc * 1;
+                vFy = vOy + acc * 1;
+
+                vF = sqrt(vFx^2 + vFy^2);
+
+                xPoint = xi + vFx * 1;
+                
+                firstDev = (1239074865516641593437593 * xPoint^3) - (562966673333891020896990021 * xPoint^2) + (64950852715611254693298549490 * xPoint) - (1228348012196148782363324334890/1073750368006801007273581211);
+                segDev = (1678584148363027672302 * xPoint - 254218411981888020274098)/242436298940347935713159;
+
+                k = segDev/(1 + (firstDev^2))^(3/2);
+                R = 1/k;
+                
+                newy = (0.0011539692115 * (xPoint^3)) - (0.524299399663 * (xPoint^2)) + (60.4897140442236 * (xPoint)) - 1143.9791303413722;
+
+                vMax = sqrt(coeficienteFriccionEstatica * gravity * R);
+
+                if vF > vMax 
+                    while vF >= 0
+                    
+                        fWind = 1/2 * densidadAire * areaTransversal * coeficienteFriccionAerodinamica * vF^2;
+                        fDerrape = coeficienteFriccionDinamica * masaAuto;
+                        sigmaF = - fWind - fDerrape;
+                        acc = sigmaF/masaAuto;
+
+                        vFx = vOx + acc * 1;
+                        vFy = vOy + acc * 1;
+
+                        vF = sqrt(vFx^2 + vFy^2);
+                        
+                        xPoint = xPoint + vFx;
+                        newy = newy + vFy;
+
+                        newxList(end+1) = xPoint;
+                        newyList(end+1) = newy;
+
+                        vOy = vFy;
+                        vOx = vFx;
+               
+                    end
+                else 
+                    newyList(end+1) = newy;
+                    newxList(end+1) = xPoint;
+
+         
+
+                    if xPoint >= xPoint4
+                        break
+                    else
+                        xi = xPoint;
+                        velI = vF;
+                    end  
+
+                end      
+            end
+
+            %Curvas
+            plot(tabla,30:1:280, yList);
+
+            hold(tabla, 'on');
+
+            plot(tabla,30:1:280, yList - 5);
+
+            hold(tabla, 'on');
+
+            plot(tabla,30:1:280, yList + 6);
+
+            hold(tabla, 'on');
+
+            %Puntos exactos
+            plot(tabla,xDef, yDef, 'o');
+
+            hold(tabla,'on')
+
+            plot(tabla, xCurves, yCurves, 'o');
+            hold(tabla, 'on');
+
+            %Gradas
+            posBox1 = [xDrift1-40,yDrift1+25,80,10];
+            posBox2 = [xDrift2-40,yDrift2-26,80,10];
+
+            rectangle(tabla,'Position',posBox1);
+            hold(tabla, 'on')
+
+            rectangle(tabla,'Position',posBox2);
+            hold(tabla, 'on')
+
+            %Carro
+            comet(tabla,newxList, newyList);
+            
+
+            
+
+
+            
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 640 480];
+            app.UIFigure.Name = 'MATLAB App';
+
+            % Create UIAxes
+            app.UIAxes = uiaxes(app.UIFigure);
+            title(app.UIAxes, 'SImulacion de la Pista')
+            xlabel(app.UIAxes, 'X')
+            ylabel(app.UIAxes, 'Y')
+            zlabel(app.UIAxes, 'Z')
+            app.UIAxes.Position = [252 192 357 232];
+
+            % Create DesplegarButton
+            app.DesplegarButton = uibutton(app.UIFigure, 'push');
+            app.DesplegarButton.ButtonPushedFcn = createCallbackFcn(app, @DesplegarButtonPushed, true);
+            app.DesplegarButton.Position = [271 45 100 22];
+            app.DesplegarButton.Text = 'Desplegar';
+
+            % Create VelocidadInicialkmhEditFieldLabel
+            app.VelocidadInicialkmhEditFieldLabel = uilabel(app.UIFigure);
+            app.VelocidadInicialkmhEditFieldLabel.HorizontalAlignment = 'right';
+            app.VelocidadInicialkmhEditFieldLabel.Position = [10 402 125 22];
+            app.VelocidadInicialkmhEditFieldLabel.Text = 'Velocidad Inicial(km/h)';
+
+            % Create VelocidadInicialkmhEditField
+            app.VelocidadInicialkmhEditField = uieditfield(app.UIFigure, 'numeric');
+            app.VelocidadInicialkmhEditField.Limits = [200 Inf];
+            app.VelocidadInicialkmhEditField.Position = [144 402 100 22];
+            app.VelocidadInicialkmhEditField.Value = 200;
+
+            % Create CoeficientedeFriccionAerodinamicaSliderLabel
+            app.CoeficientedeFriccionAerodinamicaSliderLabel = uilabel(app.UIFigure);
+            app.CoeficientedeFriccionAerodinamicaSliderLabel.HorizontalAlignment = 'right';
+            app.CoeficientedeFriccionAerodinamicaSliderLabel.Position = [10 105 210 88];
+            app.CoeficientedeFriccionAerodinamicaSliderLabel.Text = 'Coeficiente de Friccion Aerodinamica ';
+
+            % Create CoeficientedeFriccionAerodinamicaSlider
+            app.CoeficientedeFriccionAerodinamicaSlider = uislider(app.UIFigure);
+            app.CoeficientedeFriccionAerodinamicaSlider.Limits = [0.1 0.7];
+            app.CoeficientedeFriccionAerodinamicaSlider.Position = [243 157 81 3];
+            app.CoeficientedeFriccionAerodinamicaSlider.Value = 0.1;
+
+            % Create AceleracindelVehiculomsSliderLabel
+            app.AceleracindelVehiculomsSliderLabel = uilabel(app.UIFigure);
+            app.AceleracindelVehiculomsSliderLabel.HorizontalAlignment = 'right';
+            app.AceleracindelVehiculomsSliderLabel.Position = [11 345 163 22];
+            app.AceleracindelVehiculomsSliderLabel.Text = 'Aceleración del Vehiculo (m/s';
+
+            % Create AceleracindelVehiculomsSlider
+            app.AceleracindelVehiculomsSlider = uislider(app.UIFigure);
+            app.AceleracindelVehiculomsSlider.Limits = [5 15];
+            app.AceleracindelVehiculomsSlider.Orientation = 'vertical';
+            app.AceleracindelVehiculomsSlider.Position = [210 284 3 83];
+            app.AceleracindelVehiculomsSlider.Value = 5;
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = Formula1_mkIII
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end]]></w:t></w:r></w:p></w:body></w:document>
