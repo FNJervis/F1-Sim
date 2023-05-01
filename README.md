@@ -1,2 +1,2 @@
 # F1-Sim
-Thermodinamics sim
+Thermodynamics and transfer of energy in a skidding F1 car simimulation
